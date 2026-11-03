@@ -1,0 +1,1365 @@
+
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tracking Carton Box</title>
+
+<!-- LIBRARY OCR -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<!-- LIBRARY PEMBUAT BARCODE -->
+<script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+
+<!-- LIBRARY SCANNER BARCODE -->
+<script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"></script>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f1f5f9;
+    color: #1e293b;
+}
+
+header {
+    background: #17324d;
+    color: white;
+    padding: 22px;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 23px;
+}
+
+header p {
+    margin-bottom: 0;
+    color: #cbd5e1;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 25px auto;
+    padding: 15px;
+}
+
+.cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+}
+
+.card h2 {
+    font-size: 28px;
+    margin-bottom: 0;
+}
+
+.wip h2 { color: #16a34a; }
+.hold h2 { color: #d97706; }
+.sortir h2 { color: #dc2626; }
+.sisa h2 { color: #0f766e; }
+
+.menu, .halaman {
+    background: white;
+    padding: 22px;
+    margin-top: 20px;
+    border-radius: 12px;
+}
+
+button {
+    background: #2563eb;
+    color: white;
+    padding: 12px 18px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    margin: 5px;
+    font-weight: bold;
+}
+
+button:hover { background: #1d4ed8; }
+
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.menu-daftar {
+    background: #17324d;
+    width: calc(100% - 10px);
+    text-align: left;
+    padding: 18px;
+    font-size: 16px;
+}
+
+.menu-daftar:hover { background: #254d70; }
+
+.tabel-container {
+    overflow-x: auto;
+    margin-top: 18px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 650px;
+}
+
+th, td {
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    text-align: left;
+    font-size: 14px;
+}
+
+th {
+    background: #17324d;
+    color: white;
+}
+
+.kosong {
+    text-align: center;
+    padding: 30px;
+    color: #64748b;
+}
+
+.tersembunyi { display: none; }
+
+.form-group { margin-bottom: 15px; }
+
+.form-group label {
+    display: block;
+    margin-bottom: 7px;
+    font-weight: bold;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 11px;
+    border: 1px solid #cbd5e1;
+    border-radius: 7px;
+    font-size: 14px;
+}
+
+.form-group textarea { resize: vertical; }
+
+.kamera, .preview {
+    width: 100%;
+    max-width: 500px;
+    border-radius: 10px;
+    margin-top: 10px;
+}
+
+.kamera { background: #0f172a; }
+
+.status-ocr {
+    color: #2563eb;
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.barcode-svg {
+    max-width: 180px;
+    height: auto;
+}
+
+.status-terdaftar {
+    color: #64748b;
+    font-weight: bold;
+}
+
+.status-wip {
+    color: #16a34a;
+    font-weight: bold;
+}
+
+/* FORM STATUS BARCODE */
+
+.pilihan-status {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin: 15px 0;
+}
+
+.pilihan-status label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 15px;
+    border: 1px solid #cbd5e1;
+    border-radius: 9px;
+    cursor: pointer;
+    font-weight: bold;
+    background: #fff;
+}
+
+.pilihan-status label:has(input:checked) {
+    border: 2px solid #2563eb;
+    background: #eff6ff;
+}
+
+.pilihan-status input {
+    width: 18px;
+    height: 18px;
+}
+
+.info-material {
+    background: #f1f5f9;
+    padding: 15px;
+    border-radius: 10px;
+    margin: 15px 0;
+}
+
+.info-material p { margin: 7px 0; }
+
+.keterangan {
+    color: #64748b;
+    font-size: 13px;
+}
+
+.riwayat {
+    margin-top: 20px;
+    padding: 15px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+}
+
+.riwayat-item {
+    padding: 12px 0;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 14px;
+}
+
+.riwayat-item:last-child { border-bottom: none; }
+
+/* LABEL BARCODE */
+
+.label-barcode {
+    border: 1px solid #cbd5e1;
+    border-radius: 10px;
+    padding: 25px;
+    max-width: 450px;
+    margin: 20px auto;
+    text-align: center;
+    background: white;
+}
+
+.label-barcode svg {
+    width: 100%;
+    max-width: 350px;
+    height: auto;
+}
+
+.label-barcode h3 { margin-top: 0; }
+
+@media(max-width:600px) {
+    .cards { grid-template-columns: repeat(2, 1fr); }
+    .pilihan-status { grid-template-columns: 1fr; }
+}
+
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 10mm;
+    }
+
+    body { background: white; }
+
+    body * { visibility: hidden !important; }
+
+    #areaCetak,
+    #areaCetak * {
+        visibility: visible !important;
+    }
+
+    #areaCetak {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 90mm;
+        max-width: 90mm;
+        margin: 0;
+        border: 1px solid #000;
+        border-radius: 0;
+        padding: 10mm;
+    }
+
+    #areaCetak svg { max-width: 100%; }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+    <h1>TRACKING CARTON BOX</h1>
+    <p>Sistem Registrasi dan Tracking Material</p>
+</header>
+
+<div class="container">
+
+    <!-- DASHBOARD -->
+    <section id="dashboard">
+        <h2>Dashboard Gudang</h2>
+
+        <div class="cards">
+            <div class="card wip">WIP<h2 id="wip">0</h2></div>
+            <div class="card hold">HOLD<h2 id="hold">0</h2></div>
+            <div class="card sortir">SORTIR<h2 id="sortir">0</h2></div>
+            <div class="card sisa">SISA<h2 id="sisa">0</h2></div>
+        </div>
+
+        <div class="menu">
+            <h2>Menu Utama</h2>
+
+            <button class="menu-daftar" onclick="bukaDaftarMaterial()">
+                📦 DAFTAR MATERIAL
+            </button>
+
+            <br>
+
+            <button onclick="bukaRegistrasi()">Registrasi Material</button>
+            <button onclick="bukaScanBarcode()">Scan Barcode</button>
+
+            <button onclick="alert('Menu Tracking Material akan dikembangkan pada tahap berikutnya.')">
+                Tracking Material
+            </button>
+
+            <button onclick="bukaDaftarMaterial()">Cetak Label</button>
+        </div>
+    </section>
+
+    <!-- DAFTAR MATERIAL -->
+    <section id="halamanMaterial" class="halaman tersembunyi">
+        <h2>DAFTAR MATERIAL</h2>
+        <p>Daftar seluruh palet material yang telah diregistrasi dan tersimpan di gudang.</p>
+
+        <div class="tabel-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>No.</th>
+                        <th>Nomor Identitas Material</th>
+                        <th>Nama Material</th>
+                        <th>Qty (PCS)</th>
+                        <th>Status</th>
+                        <th>Barcode</th>
+                        <th>Aksi</th>
+                    </tr>
+                </thead>
+                <tbody id="daftarPalet">
+                    <tr>
+                        <td colspan="7" class="kosong">
+                            Belum ada data palet material.
+                            <br>
+                            Silakan lakukan registrasi material terlebih dahulu.
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <br>
+        <button onclick="kembaliDashboard()">← Kembali ke Dashboard</button>
+    </section>
+
+    <!-- REGISTRASI -->
+    <section id="halamanRegistrasi" class="halaman tersembunyi">
+        <h2>REGISTRASI MATERIAL</h2>
+        <p>Foto label material untuk membaca nomor identitas menggunakan teknologi OCR.</p>
+
+        <hr>
+        <h3>1. Ambil Foto Label Material</h3>
+
+        <div class="form-group">
+            <button type="button" onclick="bukaKamera()">📷 Buka Kamera</button>
+            <button type="button" onclick="ambilFoto()">Ambil Foto</button>
+
+            <video id="kamera" class="kamera" autoplay playsinline style="display:none"></video>
+            <canvas id="kanvas" style="display:none"></canvas>
+            <img id="preview" class="preview" style="display:none">
+        </div>
+
+        <div class="form-group">
+            <label>Atau Pilih Foto dari Komputer / HP</label>
+            <input type="file" id="fotoFile" accept="image/*">
+        </div>
+
+        <hr>
+        <h3>2. Pembacaan Tulisan Label (OCR)</h3>
+
+        <button type="button" onclick="bacaOCR()">🔍 BACA TULISAN LABEL</button>
+        <p id="statusOCR" class="status-ocr"></p>
+
+        <div class="form-group">
+            <label>Hasil Pembacaan OCR</label>
+            <textarea id="hasilOCR" rows="5" placeholder="Hasil pembacaan tulisan akan muncul di sini..."></textarea>
+        </div>
+
+        <hr>
+        <h3>3. Verifikasi Data Material</h3>
+        <p>Periksa kembali data sebelum menyimpan material.</p>
+
+        <div class="form-group">
+            <label>Nomor Identitas Material</label>
+            <input type="text" id="nomorIdentitas" placeholder="Masukkan nomor identitas material">
+        </div>
+
+        <div class="form-group">
+            <label>Nama Material</label>
+            <input type="text" id="namaMaterial" placeholder="Masukkan nama material">
+        </div>
+
+        <div class="form-group">
+            <label>Jumlah / Qty (PCS)</label>
+            <input type="number" id="qtyMaterial" min="1" step="1" placeholder="Masukkan jumlah material">
+        </div>
+
+        <button type="button" onclick="simpanMaterial()">💾 SIMPAN MATERIAL</button>
+        <button type="button" onclick="kembaliDashboard()">← Kembali ke Dashboard</button>
+    </section>
+
+    <!-- CETAK BARCODE -->
+    <section id="halamanCetakBarcode" class="halaman tersembunyi">
+        <h2>CETAK BARCODE MATERIAL</h2>
+        <p>Periksa data material sebelum mencetak barcode.</p>
+
+        <div id="areaCetak" class="label-barcode">
+            <h3 id="cetakNama">Nama Material</h3>
+            <p>Nomor Identitas: <strong id="cetakNomor"></strong></p>
+            <p>Qty: <strong id="cetakQty"></strong> PCS</p>
+            <svg id="barcodePreview"></svg>
+            <p style="font-size:12px;">TRACKING CARTON BOX</p>
+        </div>
+
+        <button onclick="cetakBarcodeSekarang()">🖨 CETAK BARCODE</button>
+        <button onclick="bukaDaftarMaterial()">← Kembali ke Daftar Material</button>
+    </section>
+
+    <!-- SCAN BARCODE -->
+    <section id="halamanScan" class="halaman tersembunyi">
+        <h2>SCAN BARCODE MATERIAL</h2>
+        <p>Pindai barcode palet untuk mencatat status dan jumlah material.</p>
+
+        <hr>
+        <h3>1. Pindai Barcode</h3>
+
+        <button type="button" onclick="bukaKameraScan()">📷 Buka Scanner</button>
+        <button type="button" onclick="tutupKameraScan()">Tutup Scanner</button>
+
+        <video id="kameraScan" class="kamera" autoplay playsinline muted style="display:none"></video>
+
+        <p id="statusScan" class="status-ocr"></p>
+
+        <div class="form-group">
+            <label>Atau Masukkan Nomor Barcode</label>
+            <input type="text" id="inputBarcode" placeholder="Masukkan nomor barcode material">
+        </div>
+
+        <button type="button" onclick="prosesScanManual()">CARI MATERIAL</button>
+
+        <hr>
+
+        <div id="hasilScan" class="tersembunyi">
+            <h3>2. Data Material Ditemukan</h3>
+
+            <div class="info-material">
+                <p><strong>Nomor Palet:</strong> <span id="scanNomor"></span></p>
+                <p><strong>Nama Material:</strong> <span id="scanNama"></span></p>
+                <p><strong>Qty Aktif:</strong> <span id="scanQty"></span> PCS</p>
+                <p><strong>Status Saat Ini:</strong> <span id="scanStatus"></span></p>
+            </div>
+
+            <hr>
+            <h3>3. FORM PENCATATAN STATUS MATERIAL</h3>
+            <p>Pilih status sesuai kondisi material setelah diperiksa.</p>
+
+            <div class="pilihan-status">
+                <label><input type="radio" name="statusMaterial" value="WIP" checked> WIP</label>
+                <label><input type="radio" name="statusMaterial" value="HABIS"> HABIS</label>
+                <label><input type="radio" name="statusMaterial" value="SISA"> SISA</label>
+                <label><input type="radio" name="statusMaterial" value="SORTIR"> SORTIR</label>
+                <label><input type="radio" name="statusMaterial" value="HOLD"> HOLD</label>
+            </div>
+
+            <div id="formJumlahSisa" class="form-group tersembunyi">
+                <label>Jumlah Material SISA (PCS)</label>
+                <input type="number" id="jumlahSisa" min="1" step="1" placeholder="Masukkan jumlah material sisa">
+                <p class="keterangan">Jumlah tidak boleh melebihi Qty aktif palet.</p>
+            </div>
+
+            <div id="formJumlahHold" class="form-group tersembunyi">
+                <label>Jumlah Material HOLD (PCS)</label>
+                <input type="number" id="jumlahHold" min="1" step="1" placeholder="Masukkan jumlah material yang ditahan">
+                <p class="keterangan">Jumlah tidak boleh melebihi Qty aktif palet.</p>
+            </div>
+
+            <div class="form-group">
+                <label>Catatan (Opsional)</label>
+                <textarea id="catatanStatus" rows="3" placeholder="Tambahkan keterangan jika diperlukan..."></textarea>
+            </div>
+
+            <button type="button" onclick="simpanStatusMaterial()">💾 KIRIM DATA</button>
+
+            <hr>
+            <div class="riwayat">
+                <h3>RIWAYAT PALET INI</h3>
+                <div id="daftarRiwayat">Belum ada riwayat.</div>
+            </div>
+        </div>
+
+        <br>
+        <button onclick="kembaliDashboard()">← Kembali ke Dashboard</button>
+    </section>
+</div>
+
+<script>
+
+// ======================================
+// PENYIMPANAN DATA
+// ======================================
+
+let dataMaterial = [];
+
+try {
+    dataMaterial = JSON.parse(localStorage.getItem("dataMaterial") || "[]");
+
+    if (!Array.isArray(dataMaterial)) dataMaterial = [];
+
+    dataMaterial.forEach(item => {
+        if (item.scanMasuk === undefined) {
+            item.scanMasuk = item.status === "WIP";
+        }
+        if (!Array.isArray(item.riwayat)) item.riwayat = [];
+        if (item.qtyAwal === undefined) item.qtyAwal = Number(item.qty) || 0;
+    });
+
+    localStorage.setItem("dataMaterial", JSON.stringify(dataMaterial));
+} catch (error) {
+    dataMaterial = [];
+}
+
+let kameraAktif = null;
+let fotoTerpilih = null;
+let materialSedangDiproses = null;
+let materialUntukCetak = null;
+
+let pembacaBarcode = null;
+let kontrolScanner = null;
+let scanBerjalan = false;
+
+
+// ======================================
+// SIMPAN DATA
+// ======================================
+
+function simpanKePenyimpanan() {
+    localStorage.setItem("dataMaterial", JSON.stringify(dataMaterial));
+}
+
+
+// ======================================
+// PINDAH HALAMAN
+// ======================================
+
+function sembunyikanSemuaHalaman() {
+    document.getElementById("dashboard").classList.add("tersembunyi");
+    document.getElementById("halamanMaterial").classList.add("tersembunyi");
+    document.getElementById("halamanRegistrasi").classList.add("tersembunyi");
+    document.getElementById("halamanScan").classList.add("tersembunyi");
+    document.getElementById("halamanCetakBarcode").classList.add("tersembunyi");
+}
+
+function bukaRegistrasi() {
+    sembunyikanSemuaHalaman();
+    document.getElementById("halamanRegistrasi").classList.remove("tersembunyi");
+}
+
+function bukaDaftarMaterial() {
+    sembunyikanSemuaHalaman();
+    document.getElementById("halamanMaterial").classList.remove("tersembunyi");
+    tampilkanMaterial();
+}
+
+function bukaScanBarcode() {
+    tutupKameraScan();
+    sembunyikanSemuaHalaman();
+
+    document.getElementById("halamanScan").classList.remove("tersembunyi");
+    document.getElementById("hasilScan").classList.add("tersembunyi");
+    document.getElementById("inputBarcode").value = "";
+    document.getElementById("statusScan").textContent = "";
+
+    materialSedangDiproses = null;
+}
+
+function kembaliDashboard() {
+    tutupKamera();
+    tutupKameraScan();
+    sembunyikanSemuaHalaman();
+    document.getElementById("dashboard").classList.remove("tersembunyi");
+}
+
+
+// ======================================
+// KAMERA OCR
+// ======================================
+
+async function bukaKamera() {
+    try {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("Kamera membutuhkan HTTPS atau localhost. Silakan gunakan pilihan foto dari galeri.");
+            return;
+        }
+
+        tutupKamera();
+
+        kameraAktif = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment" },
+            audio: false
+        });
+
+        const video = document.getElementById("kamera");
+        video.srcObject = kameraAktif;
+        video.style.display = "block";
+        await video.play();
+
+    } catch (error) {
+        console.error("Error kamera OCR:", error);
+        alert("Kamera tidak dapat dibuka: " + error.name + "\n" + error.message);
+    }
+}
+
+function tutupKamera() {
+    if (kameraAktif) {
+        kameraAktif.getTracks().forEach(track => track.stop());
+        kameraAktif = null;
+    }
+
+    document.getElementById("kamera").style.display = "none";
+}
+
+function ambilFoto() {
+    const video = document.getElementById("kamera");
+    const canvas = document.getElementById("kanvas");
+
+    if (!kameraAktif || !video.videoWidth) {
+        alert("Silakan buka kamera terlebih dahulu.");
+        return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    canvas.toBlob(function(blob) {
+        if (!blob) {
+            alert("Gagal mengambil foto.");
+            return;
+        }
+
+        fotoTerpilih = blob;
+        tampilkanFoto(URL.createObjectURL(blob));
+        tutupKamera();
+    }, "image/jpeg", 0.9);
+}
+
+document.getElementById("fotoFile").addEventListener("change", function(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+        alert("File yang dipilih harus berupa gambar.");
+        return;
+    }
+
+    fotoTerpilih = file;
+    tampilkanFoto(URL.createObjectURL(file));
+});
+
+function tampilkanFoto(foto) {
+    const preview = document.getElementById("preview");
+    preview.src = foto;
+    preview.style.display = "block";
+}
+
+
+// ======================================
+// OCR
+// ======================================
+
+async function bacaOCR() {
+    if (!fotoTerpilih) {
+        alert("Silakan ambil foto atau pilih foto label terlebih dahulu.");
+        return;
+    }
+
+    if (typeof Tesseract === "undefined") {
+        alert("Library OCR belum berhasil dimuat. Periksa koneksi internet.");
+        return;
+    }
+
+    const status = document.getElementById("statusOCR");
+    const hasil = document.getElementById("hasilOCR");
+    const tombol = document.querySelector('button[onclick="bacaOCR()"]');
+
+    try {
+        tombol.disabled = true;
+        status.textContent = "Sedang mempersiapkan OCR...";
+        hasil.value = "";
+
+        const hasilBaca = await Tesseract.recognize(fotoTerpilih, "eng", {
+            logger: function(info) {
+                if (info.status === "recognizing text") {
+                    status.textContent = "Proses OCR: " + Math.round(info.progress * 100) + "%";
+                } else {
+                    status.textContent = info.status;
+                }
+            }
+        });
+
+        const teks = hasilBaca.data.text.trim();
+        hasil.value = teks;
+
+        if (teks) {
+            status.textContent = "Pembacaan selesai. Silakan periksa hasil OCR.";
+
+            const baris = teks.split(/\r?\n/)
+                .map(item => item.trim())
+                .filter(item => item.length > 0);
+
+            if (baris.length > 0) {
+                document.getElementById("nomorIdentitas").value = baris[0];
+            }
+        } else {
+            status.textContent = "Tulisan tidak terdeteksi. Silakan foto ulang label.";
+        }
+
+    } catch (error) {
+        console.error(error);
+        status.textContent = "OCR gagal. Silakan coba kembali.";
+    } finally {
+        tombol.disabled = false;
+    }
+}
+
+
+// ======================================
+// REGISTRASI MATERIAL
+// ======================================
+
+function simpanMaterial() {
+    const nomor = document.getElementById("nomorIdentitas").value.trim();
+    const nama = document.getElementById("namaMaterial").value.trim();
+    const qty = Number(document.getElementById("qtyMaterial").value);
+
+    if (!nomor || !nama || !Number.isInteger(qty) || qty < 1) {
+        alert("Nomor identitas, nama material, dan Qty wajib diisi dengan benar.");
+        return;
+    }
+
+    const sudahAda = dataMaterial.some(item =>
+        item.nomor.toLowerCase() === nomor.toLowerCase()
+    );
+
+    if (sudahAda) {
+        alert("Nomor identitas material sudah terdaftar.");
+        return;
+    }
+
+    const materialBaru = {
+        nomor: nomor,
+        nama: nama,
+        qty: qty,
+        qtyAwal: qty,
+        status: "TERDAFTAR",
+        barcode: nomor,
+        scanMasuk: false,
+        riwayat: []
+    };
+
+    dataMaterial.push(materialBaru);
+    simpanKePenyimpanan();
+
+    alert("Material berhasil diregistrasi. Barcode menggunakan nomor identitas asli material. Silakan scan untuk mencatat status.");
+
+    document.getElementById("nomorIdentitas").value = "";
+    document.getElementById("namaMaterial").value = "";
+    document.getElementById("qtyMaterial").value = "";
+    document.getElementById("hasilOCR").value = "";
+    document.getElementById("fotoFile").value = "";
+    document.getElementById("preview").style.display = "none";
+    document.getElementById("statusOCR").textContent = "";
+
+    fotoTerpilih = null;
+    perbaruiDashboard();
+    kembaliDashboard();
+}
+
+
+// ======================================
+// DAFTAR MATERIAL
+// ======================================
+
+function tampilkanMaterial() {
+    const tabel = document.getElementById("daftarPalet");
+    tabel.innerHTML = "";
+
+    if (dataMaterial.length === 0) {
+        tabel.innerHTML = `
+            <tr>
+                <td colspan="7" class="kosong">
+                    Belum ada data palet material.
+                    <br>
+                    Silakan lakukan registrasi material terlebih dahulu.
+                </td>
+            </tr>
+        `;
+        return;
+    }
+
+    dataMaterial.forEach((item, index) => {
+        const baris = document.createElement("tr");
+
+        const nilaiBaris = [
+            index + 1,
+            item.nomor,
+            item.nama,
+            item.qty,
+            item.status,
+            item.barcode
+        ];
+
+        nilaiBaris.forEach(nilai => {
+            const kolom = document.createElement("td");
+            kolom.textContent = nilai;
+            baris.appendChild(kolom);
+        });
+
+        const kolomAksi = document.createElement("td");
+        const tombolPilih = document.createElement("button");
+
+        tombolPilih.textContent = "PILIH / CETAK";
+        tombolPilih.onclick = function() {
+            pilihMaterialUntukCetak(index);
+        };
+
+        kolomAksi.appendChild(tombolPilih);
+        baris.appendChild(kolomAksi);
+        tabel.appendChild(baris);
+    });
+}
+
+
+// ======================================
+// CETAK BARCODE
+// ======================================
+
+function pilihMaterialUntukCetak(index) {
+    materialUntukCetak = dataMaterial[index];
+
+    if (!materialUntukCetak) {
+        alert("Material tidak ditemukan.");
+        return;
+    }
+
+    if (typeof JsBarcode === "undefined") {
+        alert("Library barcode belum berhasil dimuat. Periksa koneksi internet.");
+        return;
+    }
+
+    sembunyikanSemuaHalaman();
+    document.getElementById("halamanCetakBarcode").classList.remove("tersembunyi");
+
+    document.getElementById("cetakNama").textContent = materialUntukCetak.nama;
+    document.getElementById("cetakNomor").textContent = materialUntukCetak.nomor;
+    document.getElementById("cetakQty").textContent = materialUntukCetak.qty;
+
+    const barcode = document.getElementById("barcodePreview");
+    barcode.innerHTML = "";
+
+    JsBarcode(barcode, materialUntukCetak.barcode, {
+        format: "CODE128",
+        width: 2,
+        height: 70,
+        displayValue: true,
+        fontSize: 16,
+        margin: 10
+    });
+}
+
+function cetakBarcodeSekarang() {
+    if (!materialUntukCetak) {
+        alert("Silakan pilih material terlebih dahulu.");
+        return;
+    }
+
+    window.print();
+}
+
+
+// ======================================
+// CARI MATERIAL DARI BARCODE
+// ======================================
+
+function cariMaterialBarcode(barcode) {
+    const kode = String(barcode || "").trim();
+
+    if (!kode) {
+        alert("Masukkan atau pindai barcode terlebih dahulu.");
+        return;
+    }
+
+    const material = dataMaterial.find(item =>
+        String(item.barcode).toLowerCase() === kode.toLowerCase() ||
+        String(item.nomor).toLowerCase() === kode.toLowerCase()
+    );
+
+    if (!material) {
+        materialSedangDiproses = null;
+        document.getElementById("hasilScan").classList.add("tersembunyi");
+        alert("Barcode tidak ditemukan. Pastikan material sudah diregistrasi.");
+        return;
+    }
+
+    materialSedangDiproses = material;
+    tampilkanFormScan();
+}
+
+
+// ======================================
+// TAMPILKAN DATA DAN FORM SCAN
+// ======================================
+
+function tampilkanFormScan() {
+    if (!materialSedangDiproses) return;
+
+    const material = materialSedangDiproses;
+
+    document.getElementById("scanNomor").textContent = material.nomor;
+    document.getElementById("scanNama").textContent = material.nama;
+    document.getElementById("scanQty").textContent = material.qty;
+    document.getElementById("scanStatus").textContent = material.status;
+
+    document.getElementById("hasilScan").classList.remove("tersembunyi");
+
+    const pilihan = document.querySelector(
+        'input[name="statusMaterial"][value="' + material.status + '"]'
+    );
+
+    if (pilihan) {
+        pilihan.checked = true;
+    } else {
+        document.querySelector('input[name="statusMaterial"][value="WIP"]').checked = true;
+    }
+
+    document.getElementById("jumlahSisa").value = "";
+    document.getElementById("jumlahHold").value = "";
+    document.getElementById("catatanStatus").value = "";
+
+    tampilkanInputJumlah();
+    tampilkanRiwayat(material);
+}
+
+
+// ======================================
+// TAMPILKAN INPUT JUMLAH SESUAI STATUS
+// ======================================
+
+function tampilkanInputJumlah() {
+    const pilihan = document.querySelector('input[name="statusMaterial"]:checked');
+    const status = pilihan ? pilihan.value : "";
+
+    document.getElementById("formJumlahSisa")
+        .classList.toggle("tersembunyi", status !== "SISA");
+
+    document.getElementById("formJumlahHold")
+        .classList.toggle("tersembunyi", status !== "HOLD");
+}
+
+document.querySelectorAll('input[name="statusMaterial"]').forEach(input => {
+    input.addEventListener("change", tampilkanInputJumlah);
+});
+
+
+// ======================================
+// SIMPAN STATUS DAN RIWAYAT PALET
+// ======================================
+
+function simpanStatusMaterial() {
+    if (!materialSedangDiproses) {
+        alert("Silakan scan barcode material terlebih dahulu.");
+        return;
+    }
+
+    const material = materialSedangDiproses;
+    const pilihan = document.querySelector('input[name="statusMaterial"]:checked');
+
+    if (!pilihan) {
+        alert("Silakan pilih status material.");
+        return;
+    }
+
+    const statusBaru = pilihan.value;
+    const qtySebelumnya = Number(material.qty);
+    let qtyBaru = qtySebelumnya;
+
+    if (statusBaru === "SISA") {
+        qtyBaru = Number(document.getElementById("jumlahSisa").value);
+
+        if (!Number.isInteger(qtyBaru) || qtyBaru <= 0) {
+            alert("Jumlah SISA wajib diisi dengan angka PCS lebih dari 0.");
+            return;
+        }
+
+        if (qtyBaru > qtySebelumnya) {
+            alert("Jumlah SISA tidak boleh melebihi Qty aktif palet (" + qtySebelumnya + " PCS).");
+            return;
+        }
+    }
+
+    if (statusBaru === "HOLD") {
+        qtyBaru = Number(document.getElementById("jumlahHold").value);
+
+        if (!Number.isInteger(qtyBaru) || qtyBaru <= 0) {
+            alert("Jumlah HOLD wajib diisi dengan angka PCS lebih dari 0.");
+            return;
+        }
+
+        if (qtyBaru > qtySebelumnya) {
+            alert("Jumlah HOLD tidak boleh melebihi Qty aktif palet (" + qtySebelumnya + " PCS).");
+            return;
+        }
+    }
+
+    if (material.status === "HABIS" && statusBaru !== "HABIS") {
+        alert("Material sudah berstatus HABIS. Periksa kembali sebelum melakukan perubahan.");
+        return;
+    }
+
+    if (statusBaru === "HABIS") qtyBaru = 0;
+
+    const catatan = document.getElementById("catatanStatus").value.trim();
+    const waktu = new Date().toLocaleString("id-ID");
+
+    const dataRiwayat = {
+        waktu: waktu,
+        nomor: material.nomor,
+        statusSebelumnya: material.status,
+        statusBaru: statusBaru,
+        qtySebelumnya: qtySebelumnya,
+        qtyBaru: qtyBaru,
+        catatan: catatan
+    };
+
+    const konfirmasi = confirm(
+        "Simpan pencatatan material?\n\n" +
+        "Nomor Palet: " + material.nomor + "\n" +
+        "Status: " + statusBaru + "\n" +
+        "Qty: " + qtyBaru + " PCS"
+    );
+
+    if (!konfirmasi) return;
+
+    if (!Array.isArray(material.riwayat)) material.riwayat = [];
+
+    material.riwayat.push(dataRiwayat);
+    material.status = statusBaru;
+    material.qty = qtyBaru;
+
+    if (statusBaru === "WIP") material.scanMasuk = true;
+
+    material.waktuUpdate = waktu;
+
+    simpanKePenyimpanan();
+
+    alert(
+        "Data berhasil disimpan!\n\n" +
+        "Nomor Palet: " + material.nomor + "\n" +
+        "Status: " + statusBaru + "\n" +
+        "Qty: " + qtyBaru + " PCS"
+    );
+
+    perbaruiDashboard();
+    tampilkanMaterial();
+    tampilkanFormScan();
+}
+
+
+// ======================================
+// TAMPILKAN RIWAYAT PALET
+// ======================================
+
+function tampilkanRiwayat(material) {
+    const area = document.getElementById("daftarRiwayat");
+    area.innerHTML = "";
+
+    if (!material.riwayat || material.riwayat.length === 0) {
+        area.textContent = "Belum ada riwayat pencatatan untuk palet ini.";
+        return;
+    }
+
+    const riwayatTerbalik = [...material.riwayat].reverse();
+
+    riwayatTerbalik.forEach(item => {
+        const baris = document.createElement("div");
+        baris.className = "riwayat-item";
+
+        const waktu = document.createElement("strong");
+        waktu.textContent = item.waktu;
+
+        const detail = document.createElement("p");
+        detail.textContent =
+            item.statusSebelumnya + " → " + item.statusBaru +
+            " | Qty: " + item.qtySebelumnya +
+            " → " + item.qtyBaru + " PCS";
+
+        baris.appendChild(waktu);
+        baris.appendChild(detail);
+
+        if (item.catatan) {
+            const catatan = document.createElement("p");
+            catatan.textContent = "Catatan: " + item.catatan;
+            baris.appendChild(catatan);
+        }
+
+        area.appendChild(baris);
+    });
+}
+
+
+// ======================================
+// SCAN MANUAL
+// ======================================
+
+function prosesScanManual() {
+    const barcode = document.getElementById("inputBarcode").value;
+    cariMaterialBarcode(barcode);
+}
+
+
+// ======================================
+// PEMERIKSAAN LIBRARY SCANNER
+// ======================================
+
+function periksaLibraryScanner() {
+    if (typeof ZXing === "undefined") {
+        return {
+            berhasil: false,
+            pesan: "Library ZXing belum berhasil dimuat. Periksa koneksi internet atau CDN."
+        };
+    }
+
+    if (typeof ZXing.BrowserMultiFormatReader !== "function") {
+        return {
+            berhasil: false,
+            pesan: "Library ZXing ditemukan, tetapi BrowserMultiFormatReader tidak tersedia."
+        };
+    }
+
+    return { berhasil: true };
+}
+
+
+// ======================================
+// KAMERA SCANNER BARCODE ZXING
+// ======================================
+
+async function bukaKameraScan() {
+    const status = document.getElementById("statusScan");
+    const video = document.getElementById("kameraScan");
+
+    // Periksa library ZXing.
+    const pemeriksaan = periksaLibraryScanner();
+
+    if (!pemeriksaan.berhasil) {
+        status.textContent = pemeriksaan.pesan;
+        alert(pemeriksaan.pesan);
+        return;
+    }
+
+    // Periksa dukungan kamera browser.
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        const pesan = "Browser tidak menyediakan akses kamera. Buka aplikasi melalui localhost atau HTTPS.";
+        status.textContent = pesan;
+        alert(pesan);
+        return;
+    }
+
+    try {
+        // Tutup scanner yang mungkin masih berjalan.
+        tutupKameraScan();
+
+        status.textContent = "Memeriksa kamera yang tersedia...";
+        video.style.display = "block";
+
+        pembacaBarcode = new ZXing.BrowserMultiFormatReader();
+
+        // Cari daftar kamera.
+        const daftarKamera = await pembacaBarcode.listVideoInputDevices();
+
+        if (!daftarKamera || daftarKamera.length === 0) {
+            throw new Error("Tidak ada kamera yang terdeteksi pada perangkat.");
+        }
+
+        // Pilih kamera belakang jika tersedia.
+        let kameraDipilih = daftarKamera[0];
+
+        const kameraBelakang = daftarKamera.find(kamera =>
+            /back|rear|environment|belakang/i.test(kamera.label)
+        );
+
+        if (kameraBelakang) {
+            kameraDipilih = kameraBelakang;
+        }
+
+        status.textContent =
+            "Kamera ditemukan. Mengaktifkan " +
+            (kameraDipilih.label || "kamera") +
+            ". Arahkan barcode ke kamera.";
+
+        scanBerjalan = true;
+
+        // Mulai membaca barcode.
+        kontrolScanner = await pembacaBarcode.decodeFromVideoDevice(
+            kameraDipilih.deviceId,
+            video,
+            function(result, error) {
+
+                if (!scanBerjalan) return;
+
+                if (result) {
+                    const kode = result.getText();
+
+                    // Cegah pembacaan berulang.
+                    if (!kode) return;
+
+                    scanBerjalan = false;
+
+                    document.getElementById("inputBarcode").value = kode;
+                    status.textContent = "Barcode berhasil terbaca: " + kode;
+
+                    tutupKameraScan();
+
+                    // Cari data material.
+                    cariMaterialBarcode(kode);
+                }
+            }
+        );
+
+    } catch (error) {
+        console.error("DETAIL ERROR SCANNER:", error);
+
+        tutupKameraScan();
+
+        let pesan = "Scanner gagal dibuka.\n\n";
+
+        if (error.name === "NotAllowedError") {
+            pesan += "Izin kamera ditolak. Izinkan akses kamera melalui pengaturan browser.";
+        }
+        else if (error.name === "NotFoundError") {
+            pesan += "Kamera tidak ditemukan pada perangkat.";
+        }
+        else if (error.name === "NotReadableError") {
+            pesan += "Kamera sedang digunakan aplikasi lain atau tidak dapat diakses.";
+        }
+        else if (error.name === "OverconstrainedError") {
+            pesan += "Pengaturan kamera tidak cocok dengan perangkat.";
+        }
+        else if (error.name === "NotSupportedError") {
+            pesan += "Browser tidak mendukung metode pembukaan kamera yang digunakan.";
+        }
+        else {
+            pesan += "Jenis error: " + (error.name || "Tidak diketahui");
+            pesan += "\nKeterangan: " + (error.message || "Tidak ada keterangan tambahan.");
+        }
+
+        status.textContent = pesan.replace(/\n/g, " ");
+        alert(pesan);
+    }
+}
+
+
+// ======================================
+// TUTUP KAMERA SCANNER
+// ======================================
+
+function tutupKameraScan() {
+    scanBerjalan = false;
+
+    if (kontrolScanner) {
+        try {
+            kontrolScanner.stop();
+        } catch (error) {
+            console.warn("Gagal menghentikan kontrol scanner:", error);
+        }
+        kontrolScanner = null;
+    }
+
+    if (pembacaBarcode) {
+        try {
+            pembacaBarcode.reset();
+        } catch (error) {
+            console.warn("Gagal reset scanner:", error);
+        }
+        pembacaBarcode = null;
+    }
+
+    const video = document.getElementById("kameraScan");
+
+    if (video) {
+        if (video.srcObject) {
+            video.srcObject.getTracks().forEach(track => track.stop());
+        }
+
+        video.pause();
+        video.srcObject = null;
+        video.style.display = "none";
+    }
+}
+
+
+// ======================================
+// DASHBOARD
+// ======================================
+
+function perbaruiDashboard() {
+    document.getElementById("wip").textContent =
+        dataMaterial.filter(item => item.status === "WIP").length;
+
+    document.getElementById("hold").textContent =
+        dataMaterial.filter(item => item.status === "HOLD").length;
+
+    document.getElementById("sortir").textContent =
+        dataMaterial.filter(item => item.status === "SORTIR").length;
+
+    document.getElementById("sisa").textContent =
+        dataMaterial.filter(item => item.status === "SISA").length;
+}
+
+
+// ======================================
+// SAAT APLIKASI DIBUKA
+// ======================================
+
+perbaruiDashboard();
+tampilkanMaterial();
+
+</script>
+
+</body>
+</html>
